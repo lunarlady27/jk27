@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>큐브랜드 — 블록 샌드박스</title>
+<script type="importmap">{ "imports": { "three": "../vendor/three/three.module.js" } }</script>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #1d2b1a; color: #fff; font-family: "Pretendard", "Noto Sans KR", system-ui, sans-serif; user-select: none; -webkit-user-select: none; touch-action: none; }
+button { font: inherit; color: #fff; background: #5a5a5a; border: 3px solid #2a2a2a; border-top-color: #8a8a8a; border-left-color: #8a8a8a; padding: 9px 16px; cursor: pointer; font-weight: 700; }
+button.primary { background: #4a8a3a; border-top-color: #7aca5a; border-left-color: #7aca5a; border-bottom-color: #2a4a1a; border-right-color: #2a4a1a; }
+button.big { font-size: 20px; padding: 12px 28px; } button.danger { background: #8a3a3a; }
+input { font: inherit; background: #111; color: #fff; border: 3px solid #555; padding: 8px 10px; }
+.hidden { display: none !important; } .muted { opacity: .7; font-size: 13px; } .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 10px 0; }
+.screen { position: fixed; inset: 0; overflow: auto; }
+#menu { background: linear-gradient(180deg, #7ec0ff 0%, #aee0ff 45%, #6aaa4a 45%, #6aaa4a 52%, #8a6a42 52%); display: grid; place-items: center; padding: 20px; }
+.logo { font-size: clamp(46px, 9vw, 96px); font-weight: 900; letter-spacing: 2px; color: #fff; text-shadow: 4px 4px 0 #3a6a2a, 8px 8px 0 rgba(0,0,0,.3); margin: 0 0 6px; text-align: center; }
+.sub { text-align: center; margin-bottom: 18px; color: #234; font-weight: 800; }
+.card { background: rgba(30,30,30,.9); border: 4px solid #111; padding: 18px; width: min(620px, 94vw); max-height: 88vh; overflow: auto; }
+.wrow { display: flex; gap: 8px; align-items: center; background: rgba(255,255,255,.06); padding: 8px; margin-bottom: 6px; } .wrow div { flex: 1; } .wrow small { display: block; opacity: .7; }
+#view { position: absolute; inset: 0; } #view canvas { display: block; }
+#cross { position: absolute; left: 50%; top: 50%; width: 20px; height: 20px; margin: -10px 0 0 -10px; pointer-events: none; }
+#cross::before, #cross::after { content: ''; position: absolute; background: #fff; mix-blend-mode: difference; } #cross::before { left: 9px; top: 0; width: 2px; height: 20px; } #cross::after { top: 9px; left: 0; height: 2px; width: 20px; }
+#bar { position: absolute; bottom: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 3px; background: rgba(0,0,0,.45); padding: 4px; border: 3px solid #222; }
+.slot { width: 46px; height: 46px; background: rgba(120,120,120,.35); border: 3px solid #555; position: relative; cursor: pointer; } .slot img { width: 34px; height: 34px; margin: 3px; image-rendering: pixelated; }
+.slot.on { border-color: #fff; transform: scale(1.08); } .slot i { position: absolute; left: 2px; top: 0; font-size: 10px; font-style: normal; opacity: .8; }
+#bname { position: absolute; bottom: 74px; left: 50%; transform: translateX(-50%); font-weight: 800; text-shadow: 2px 2px 0 #000; pointer-events: none; }
+#msg { position: absolute; top: 14px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.55); padding: 8px 14px; transition: opacity .6s; pointer-events: none; text-align: center; }
+#hudr { position: absolute; top: 10px; right: 12px; text-align: right; font-weight: 800; text-shadow: 2px 2px 0 #000; pointer-events: none; } #pos { font-size: 12px; opacity: .85; }
+#water { position: absolute; inset: 0; background: rgba(30,80,200,.45); opacity: 0; pointer-events: none; transition: opacity .2s; }
+#inv, #pause { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.5); z-index: 10; }
+#inv .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(72px, 1fr)); gap: 6px; } #inv .grid button { padding: 6px; display: flex; flex-direction: column; align-items: center; } #inv img { width: 36px; height: 36px; image-rendering: pixelated; } #inv small { font-size: 11px; }
+#pause label { display: flex; gap: 10px; align-items: center; margin: 10px 0; } #pause input[type=range] { flex: 1; }
+/* 터치 */
+#tpad { position: absolute; inset: 0; pointer-events: none; }
+#tstick { position: absolute; width: 110px; height: 110px; margin: -55px 0 0 -55px; border: 3px solid rgba(255,255,255,.35); border-radius: 50%; display: none; } #tstick.on { display: block; }
+#tknob { position: absolute; left: 30px; top: 30px; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,.45); }
+#tpad button { pointer-events: auto; position: absolute; width: 64px; height: 64px; font-size: 22px; padding: 0; opacity: .85; } #tpad button.on { background: #7a7a3a; }
+body.touch #bar { bottom: 6px; } body.touch .slot { width: 40px; height: 40px; } body.touch .slot img { width: 28px; height: 28px; }
+</style>
+</head>
+<body>
+<div id="menu" class="screen">
+  <div>
+    <h1 class="logo">CUBELAND</h1><div class="sub">큐브랜드 · 블록으로 짓는 나만의 세계 · 한판 HANPAN</div>
+    <div class="card">
+      <h2 style="margin-top:0">새 세계</h2>
+      <div class="row"><input id="wname" placeholder="세계 이름" maxlength="20" style="flex:1"><input id="wseed" placeholder="씨앗 (비우면 무작위)" maxlength="20" style="width:170px"><button id="new" class="primary">만들기</button></div>
+      <h2>내 세계</h2><div id="worlds"></div>
+      <div class="row"><span>시야 거리</span><input id="dist" type="range" min="2" max="8" step="1" style="flex:1"><b id="distv"></b><span>청크</span></div>
+      <p class="muted">WASD 이동 · 마우스 둘러보기 · 왼쪽 클릭 길게: 캐기 · 오른쪽 클릭: 놓기 · 휠/1~9: 블록 · 가운데 클릭: 보고 있는 블록 집기 · Space 점프 (두 번: 날기) · F 날기 · Ctrl 달리기 · E 블록 목록 · T 시간 넘기기 · Esc 멈춤/저장</p>
+    </div>
+  </div>
+</div>
+<div id="play" class="screen hidden">
+  <div id="view"></div><div id="water"></div>
+  <div id="cross" class="hidden"></div>
+  <div id="msg"></div>
+  <div id="hudr"><div id="clock"></div><div id="pos"></div></div>
+  <div id="bname"></div><div id="bar"></div>
+  <div id="tpad" class="hidden"><div id="tstick"><div id="tknob"></div></div>
+    <button id="tmine" style="right:20px;bottom:150px">⛏</button><button id="tplace" style="right:96px;bottom:110px">🧱</button>
+    <button id="tjump" style="right:20px;bottom:74px">⬆</button><button id="tdown" style="right:96px;bottom:34px;width:56px;height:56px">⬇</button>
+    <button id="tfly" style="right:20px;top:60px;width:52px;height:52px">✈️</button><button id="tinv" style="right:80px;top:60px;width:52px;height:52px">🎒</button><button id="tmenu" style="left:12px;top:12px;width:52px;height:52px">⏸</button></div>
+  <div id="inv" class="hidden"></div>
+  <div id="pause" class="hidden"></div>
+</div>
+<script type="module" src="./js/main.js"></script>
+<a href="../index.html" id="hanpanHome" style="position:fixed;left:50%;bottom:6px;transform:translateX(-50%);z-index:9999;font:700 12px sans-serif;color:#fff;background:rgba(0,0,0,.45);padding:4px 10px;border-radius:99px;text-decoration:none;opacity:.7">← 한판 HANPAN</a>
+</body>
+</html>

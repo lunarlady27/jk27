@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>팝 아레나 — 3대3 난투</title>
+<script type="importmap">{ "imports": { "three": "../vendor/three/three.module.js" } }</script>
+<style>
+:root { --red: #ff4d5e; --blue: #3fa9ff; --y: #ffd23a; --bg: #1a1033; --txt: #fff; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--txt); font-family: "Pretendard", "Noto Sans KR", system-ui, sans-serif; overflow: hidden; user-select: none; -webkit-user-select: none; touch-action: none; }
+button { font: inherit; color: #fff; background: rgba(255,255,255,.1); border: 2px solid rgba(255,255,255,.18); border-radius: 14px; padding: 10px 16px; cursor: pointer; font-weight: 700; transition: transform .1s; }
+button:active { transform: scale(.96); } button:disabled { opacity: .4; }
+button.primary { background: linear-gradient(180deg, #ffd23a, #ff9a1a); color: #3a1a00; border: 0; box-shadow: 0 4px 0 #b55a00; }
+button.sel { border-color: var(--y); background: rgba(255,210,58,.18); }
+button.big { font-size: 20px; padding: 14px 30px; }
+input { font: inherit; background: rgba(255,255,255,.1); color: #fff; border: 2px solid rgba(255,255,255,.18); border-radius: 12px; padding: 10px 12px; }
+.hidden { display: none !important; } .muted { opacity: .7; font-size: 13px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+.screen { position: fixed; inset: 0; overflow: auto; }
+#menu { background: radial-gradient(900px 500px at 50% -10%, #6a3aff, transparent), radial-gradient(700px 400px at 100% 100%, #ff4d8a55, transparent), var(--bg); padding: 22px 4vw 40px; }
+.logo { display: flex; align-items: baseline; gap: 16px; flex-wrap: wrap; }
+.logo h1 { margin: 0; font-size: clamp(40px, 7vw, 76px); font-weight: 900; font-style: italic; letter-spacing: -2px; color: var(--y); text-shadow: 0 5px 0 #b55a00, 0 10px 30px rgba(0,0,0,.4); }
+.logo span { font-size: 18px; opacity: .85; } #troph { color: var(--y); font-weight: 900; font-size: 22px; margin-left: auto; }
+h3 { margin: 18px 0 8px; }
+#heroes { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 12px; }
+.hero { text-align: left; padding: 0 0 12px; overflow: hidden; border-radius: 18px; background: linear-gradient(180deg, color-mix(in srgb, var(--c) 35%, #241640), #241640); }
+.hero .pic { background: var(--c); height: 110px; display: grid; place-items: center; } .hero .pic svg { height: 104px; }
+.hero b { display: block; font-size: 20px; padding: 8px 12px 0; } .hero small { display: block; padding: 0 12px; opacity: .8; }
+.hero .st { display: flex; gap: 4px; flex-wrap: wrap; padding: 6px 12px; } .hero .st span { font-size: 11px; background: rgba(0,0,0,.3); border-radius: 6px; padding: 2px 6px; }
+.hero p { margin: 4px 12px; font-size: 12px; opacity: .85; font-weight: 500; } .hero em { display: block; margin: 0 12px; font-size: 12px; color: var(--y); font-style: normal; }
+.hero.sel { outline: 4px solid var(--y); }
+#modes { display: flex; gap: 10px; flex-wrap: wrap; } #modes button { text-align: left; max-width: 320px; } #modes small { display: block; font-weight: 500; opacity: .8; }
+#lobby { display: grid; place-items: center; background: var(--bg); }
+.card { background: #2a1a4a; border: 2px solid rgba(255,255,255,.12); border-radius: 22px; padding: 22px; max-width: min(760px, 94vw); max-height: 92vh; overflow: auto; }
+.teams { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; } .teams ul { list-style: none; padding: 0; min-height: 90px; } .teams li { border-left: 5px solid var(--c); background: rgba(255,255,255,.06); border-radius: 8px; padding: 8px 10px; margin-bottom: 5px; }
+.code { font-family: ui-monospace, monospace; letter-spacing: 5px; color: var(--y); font-size: 30px; }
+b.red, h3.red { color: var(--red); } b.blue, h3.blue { color: var(--blue); }
+#view { position: absolute; inset: 0; } #view canvas { display: block; }
+#top { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 10px; align-items: center; pointer-events: none; flex-wrap: wrap; justify-content: center; }
+#top .sc { min-width: 74px; text-align: center; border-radius: 14px; padding: 4px 10px; } #top .sc.red { background: var(--red); } #top .sc.blue { background: var(--blue); }
+#top .sc b { display: block; font-size: 30px; line-height: 1; font-weight: 900; } #top .sc small { font-size: 11px; font-weight: 700; }
+#top .tm { background: rgba(0,0,0,.55); border-radius: 12px; padding: 4px 14px; text-align: center; } #top .tm b { display: block; font-size: 24px; } #top .tm small { font-size: 11px; opacity: .8; }
+#top .count { flex-basis: 100%; text-align: center; font-weight: 900; font-size: 20px; text-shadow: 0 2px 6px rgba(0,0,0,.6); } #top .count.good { color: #5dffa0; } #top .count.bad { color: #ff7a7a; }
+#feed { position: absolute; top: 12px; right: 12px; display: flex; flex-direction: column; gap: 4px; pointer-events: none; } #feed div { background: rgba(0,0,0,.5); border-radius: 8px; padding: 3px 9px; font-size: 13px; }
+#sup { position: absolute; right: 26px; bottom: 26px; text-align: center; pointer-events: none; } #sup small { font-size: 11px; opacity: .85; }
+#sup .ring { width: 86px; height: 86px; border-radius: 50%; background: conic-gradient(var(--y) var(--p), rgba(0,0,0,.45) 0); display: grid; place-items: center; margin: 0 auto 4px; }
+#sup .ring span { width: 70px; height: 70px; border-radius: 50%; background: #2a1a4a; display: grid; place-items: center; font-weight: 900; font-size: 18px; }
+#sup.ready .ring { animation: pulse .8s infinite; box-shadow: 0 0 24px var(--y); } @keyframes pulse { 50% { transform: scale(1.08); } }
+#dead { position: absolute; top: 40%; left: 50%; transform: translateX(-50%); font-size: 26px; font-weight: 900; text-shadow: 0 3px 8px #000; pointer-events: none; }
+#help { position: absolute; left: 14px; bottom: 14px; font-size: 12px; opacity: .75; pointer-events: none; }
+body.touch #help { display: none; }
+#end, #pause { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(10,5,25,.6); backdrop-filter: blur(4px); z-index: 20; }
+#end h1 { font-size: 64px; margin: 0; } #end h1.win { color: #5dffa0; } #end h1.lose { color: #ff7a7a; }
+#end table { width: 100%; border-collapse: collapse; } #end td, #end th { padding: 6px 8px; text-align: left; border-bottom: 1px solid rgba(255,255,255,.1); } #end tr.me { background: rgba(255,210,58,.15); }
+/* 터치 */
+#tpad { position: absolute; inset: 0; pointer-events: none; }
+.stk { position: absolute; width: 110px; height: 110px; margin: -55px 0 0 -55px; border-radius: 50%; border: 3px solid rgba(255,255,255,.3); display: none; } .stk.on { display: block; }
+.stk i { position: absolute; left: 30px; top: 30px; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,.45); }
+#tsup { pointer-events: auto; position: absolute; right: 18px; bottom: 140px; width: 84px; height: 84px; border-radius: 50%; background: rgba(255,210,58,.3); font-size: 26px; }
+#tmenu { pointer-events: auto; position: absolute; left: 12px; top: 12px; width: 48px; height: 48px; border-radius: 50%; padding: 0; }
+body.touch #sup { bottom: 230px; right: 22px; } body.touch #sup small { display: none; }
+@media (max-width: 700px) { .teams { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div id="menu" class="screen">
+  <div class="logo"><h1>POP ARENA</h1><span>팝 아레나 · 3대3 난투 · 한판 HANPAN</span><b id="troph"></b></div>
+  <div class="row"><span>닉네임</span><input id="nick" maxlength="10"></div>
+  <h3>캐릭터</h3><div id="heroes"></div>
+  <h3>모드</h3><div id="modes"></div>
+  <div class="row"><span>봇 실력</span><span id="diffs" class="row" style="margin:0"></span></div>
+  <div class="row"><button id="go" class="primary big">▶ 봇과 플레이</button><button id="mk">🛰️ 방 만들기</button><input id="code" placeholder="방 코드" maxlength="12" style="width:120px"><button id="jn">참가</button></div>
+  <p id="mpn" class="muted"></p>
+  <p class="muted">조작: WASD 이동 · 마우스로 조준 · 왼쪽 클릭 공격 · 오른쪽 클릭/Space 필살기 · F 자동 조준 · Esc 멈춤 | 태블릿: 왼쪽 끌기 이동, 오른쪽 끌어서 조준 후 놓으면 공격(톡 치면 자동 조준), ⚡ 버튼 필살기</p>
+</div>
+<div id="lobby" class="screen hidden"></div>
+<div id="play" class="screen hidden">
+  <div id="view"></div>
+  <div id="top"></div><div id="feed"></div><div id="sup"></div><div id="dead" class="hidden"></div>
+  <div id="help">WASD 이동 · 클릭 공격 · 우클릭/Space 필살기 · F 자동 조준 · 덤불에 숨으면 적에게 안 보여요</div>
+  <div id="tpad" class="hidden"><div id="stL" class="stk"><i></i></div><div id="stR" class="stk"><i></i></div><button id="tsup">⚡</button><button id="tmenu">⏸</button></div>
+  <div id="pause" class="hidden"></div>
+  <div id="end" class="hidden"></div>
+</div>
+<script type="module" src="./js/main.js"></script>
+<a href="../index.html" id="hanpanHome" style="position:fixed;left:50%;bottom:6px;transform:translateX(-50%);z-index:9999;font:700 12px sans-serif;color:#fff;background:rgba(0,0,0,.45);padding:4px 10px;border-radius:99px;text-decoration:none;opacity:.7">← 한판 HANPAN</a>
+</body>
+</html>

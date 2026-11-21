@@ -1,0 +1,374 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>로드 코리아 — 실제 지도 3D 오픈월드 드라이빙</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Noto+Sans+KR:wght@400;500;700;800;900&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="css/style.css">
+<script type="importmap">
+{ "imports": {
+  "three": "../vendor/three/three.module.js",
+  "three/addons/": "../vendor/three/addons/"
+} }
+</script>
+</head>
+<body>
+<div id="game"></div>
+
+<!-- ===== 게임 화면 HUD ===== -->
+<div id="hud" class="hidden">
+  <div id="hudproj" class="hidden"></div><div id="recdot" class="hidden">● REC</div>
+  <div id="topLeft" class="panel">
+    <div id="money" class="money-now"></div>
+    <div id="clock"></div>
+    <div id="road"><div id="limit" class="hidden"></div><div id="roadName"></div></div>
+  </div>
+  <div id="mission"></div>
+  <div id="topRight">
+    <button id="btn-nav" class="navbtn" title="내비게이션 (N)">🧭 내비</button>
+    <button id="btn-scc" class="adbtn" title="스마트 크루즈 컨트롤 (O)">⟳ SCC</button>
+    <button id="btn-auto" class="adbtn" title="자율주행 (U)">🤖 자율주행</button>
+    <button id="camname" title="카메라 바꾸기 (C)"></button>
+    <button class="ico" id="btn-help" title="도움말">?</button>
+    <button class="ico" id="btn-pause" title="일시정지">❚❚</button>
+  </div>
+  <div id="navui" class="hidden">
+    <div id="nav-card">
+      <div class="nc-main"><div id="nav-arrow" class="nc-arrow"></div><div class="nc-text"><div id="nav-dist" class="nc-dist"></div><div id="nav-turn" class="nc-turn"></div></div></div>
+      <div class="nc-prog"><i id="nav-prog"></i></div>
+      <div id="nav-road" class="nc-road"></div>
+      <div id="nav-lanes" class="nc-lanes"></div>
+      <div id="nav-then" class="nc-then"></div>
+    </div>
+  </div>
+  <div id="nav-bar" class="hidden"><span class="nb-flag">🏁</span><div class="nb-dest" id="nav-dest"></div><div class="nb-cell"><b id="nav-rem"></b><small>남은 거리</small></div><div class="nb-cell"><b id="nav-eta"></b><small id="nav-min">도착</small></div><button id="nav-stop" title="안내 종료">✕</button></div>
+  <div id="camwarn" class="hidden"><div class="cw-sign"><b id="cw-lim">60</b></div><div class="cw-txt"><b id="cw-dist">300m</b><small>📷 과속 단속</small></div></div>
+  <div id="flash"></div>
+  <div id="toasts"></div>
+  <div id="mpbox"></div>
+  <div id="chatlog"></div>
+  <input id="chatin" class="hidden" maxlength="120" placeholder="메시지를 입력하고 Enter">
+  <div id="hint" class="hidden"></div>
+  <div id="prompt" class="hidden"></div>
+  <canvas id="minimap" width="260" height="260"></canvas>
+  <canvas id="speedo" width="300" height="230"></canvas>
+  <div id="status"></div>
+  <div id="bigmap" class="hidden"><canvas id="bigmap-canvas" width="1000" height="800"></canvas><p>Tab을 떼면 닫혀요 · N: 내비 목적지 설정</p></div>
+  <div id="fps" class="hidden"></div>
+  <div id="adas" class="hidden"></div>
+  <div id="hudspeed" class="hidden"><b>0</b><span id="hudgear">D</span></div>
+  <div id="ctrlbar">
+    <div class="crow">
+      <button data-act="blinkL" class="blink" title="왼쪽 깜빡이 (Z)"><svg viewBox="0 0 40 40"><path d="M4 20 L18 7 V14 H34 V26 H18 V33 Z" fill="currentColor"/></svg></button>
+      <button data-act="wiper" title="와이퍼 (K)"><svg viewBox="0 0 40 40"><path d="M6 26 Q20 4 34 26" fill="none" stroke="currentColor" stroke-width="3"/><path d="M20 30 L29 12" stroke="currentColor" stroke-width="3"/><circle cx="20" cy="31" r="3" fill="currentColor"/></svg></button>
+      <button data-act="cabin" title="실내등 (J)"><svg viewBox="0 0 40 40"><path d="M10 22 A10 10 0 0 1 30 22 Z" fill="none" stroke="currentColor" stroke-width="3"/><path d="M12 27v6M17 27v6M22 27v6M27 27v6" stroke="currentColor" stroke-width="2.5"/></svg></button>
+      <button data-act="door0" class="busonly" title="앞문 (1)"><svg viewBox="0 0 40 40"><rect x="10" y="5" width="20" height="30" fill="none" stroke="currentColor" stroke-width="3"/><path d="M20 5v30M10 18h20" stroke="currentColor" stroke-width="2"/></svg></button>
+      <button data-act="door1" class="busonly" title="뒷문 (2)"><svg viewBox="0 0 40 40"><rect x="11" y="5" width="18" height="30" rx="2" fill="none" stroke="currentColor" stroke-width="3"/><rect x="14" y="9" width="12" height="12" fill="currentColor"/></svg></button>
+      <button data-act="blinkR" class="blink" title="오른쪽 깜빡이 (X)"><svg viewBox="0 0 40 40"><path d="M36 20 L22 7 V14 H6 V26 H22 V33 Z" fill="currentColor"/></svg></button>
+    </div>
+    <div class="crow">
+      <button data-act="key" title="시동 (I)"><svg viewBox="0 0 40 40"><circle cx="27" cy="13" r="7" fill="none" stroke="currentColor" stroke-width="3"/><path d="M22 18 L8 32 M12 28l4 4M15 25l3 3" stroke="currentColor" stroke-width="3"/></svg></button>
+      <button data-act="park" title="사이드브레이크 (B)"><svg viewBox="0 0 40 40"><rect x="7" y="27" width="26" height="6" fill="currentColor"/><path d="M12 25 L28 9" stroke="currentColor" stroke-width="6" stroke-linecap="round"/></svg></button>
+      <button data-act="lights" title="전조등 (L)"><svg viewBox="0 0 40 40"><path d="M22 8 C34 8 34 32 22 32 Z" fill="none" stroke="currentColor" stroke-width="3"/><path d="M5 12h12M5 18h12M5 24h12M5 30h12" stroke="currentColor" stroke-width="2.5"/></svg></button>
+      <button data-act="garage" title="정비·차고"><svg viewBox="0 0 40 40"><path d="M27 6a8 8 0 0 0-8 10L7 28l5 5 12-12a8 8 0 0 0 10-8l-5 3-4-1-1-4z" fill="currentColor"/></svg></button>
+      <button data-act="cam" title="카메라 바꾸기 (C)"><svg viewBox="0 0 40 40"><rect x="5" y="12" width="22" height="17" rx="3" fill="none" stroke="currentColor" stroke-width="3"/><path d="M27 18 L35 13 V28 L27 23 Z" fill="currentColor"/></svg></button>
+      <button data-act="mirror" title="사이드미러 (M)"><svg viewBox="0 0 40 40"><path d="M14 12h18a3 3 0 0 1 3 3v8a3 3 0 0 1-3 3H14z" fill="none" stroke="currentColor" stroke-width="3"/><path d="M14 19H6M6 15v8" stroke="currentColor" stroke-width="3"/></svg></button>
+      <button data-act="more" title="더 보기"><svg viewBox="0 0 40 40"><path d="M10 14h20L20 28z" fill="currentColor"/></svg></button>
+    </div>
+    <div class="crow more hidden">
+      <button data-act="hazard" title="비상등 (V)"><svg viewBox="0 0 40 40"><path d="M20 6 L35 33 H5 Z" fill="none" stroke="#d42a2a" stroke-width="4"/></svg></button>
+      <button data-act="horn" title="경적 (H)">📯</button>
+      <button data-act="scc" title="스마트 크루즈 (O)"><svg viewBox="0 0 40 40"><path d="M8 26 A13 13 0 1 1 32 26" fill="none" stroke="currentColor" stroke-width="3"/><path d="M20 26 L28 14" stroke="currentColor" stroke-width="3"/><circle cx="20" cy="26" r="3" fill="currentColor"/></svg><small>SCC</small></button>
+      <button data-act="sccdn" title="설정 속도 -5 (-)">−</button>
+      <button data-act="sccup" title="설정 속도 +5 (+)">＋</button>
+      <button data-act="auto" title="자율주행 (U)"><svg viewBox="0 0 40 40"><circle cx="20" cy="20" r="14" fill="none" stroke="currentColor" stroke-width="3"/><circle cx="20" cy="20" r="4" fill="currentColor"/><path d="M6 18 H16 M24 18 H34 M20 24 V34" stroke="currentColor" stroke-width="3"/></svg><small>자율</small></button>
+    </div>
+  </div>
+  <div id="gearsel" title="기어 (G)"><button data-g="P">P</button><button data-g="R">R</button><button data-g="N">N</button><button data-g="D">D</button><button data-g="auto" class="auto">자동</button></div>
+  <div id="pedals" class="hidden">
+    <button id="pedal-brake" data-k="KeyS" title="브레이크 (S)"><svg viewBox="0 0 100 90" preserveAspectRatio="none"><path d="M8 4h84l6 82H2z" fill="#b9bfc4" stroke="#6d757c" stroke-width="3"/><g fill="#7c858d"><rect x="18" y="14" width="12" height="60" rx="6"/><rect x="38" y="14" width="12" height="60" rx="6"/><rect x="58" y="14" width="12" height="60" rx="6"/><rect x="76" y="14" width="10" height="60" rx="5"/></g></svg></button>
+    <button id="pedal-gas" data-k="KeyW" title="엑셀 (W)"><svg viewBox="0 0 80 190" preserveAspectRatio="none"><rect x="3" y="3" width="74" height="184" rx="8" fill="#9fe0b0" stroke="#5c9a6e" stroke-width="3"/><g fill="#1d2a22"><circle cx="18" cy="22" r="7"/><circle cx="40" cy="22" r="7"/><circle cx="62" cy="22" r="7"/><circle cx="18" cy="45" r="7"/><circle cx="40" cy="45" r="7"/><circle cx="62" cy="45" r="7"/><circle cx="18" cy="68" r="7"/><circle cx="40" cy="68" r="7"/><circle cx="62" cy="68" r="7"/><circle cx="18" cy="91" r="7"/><circle cx="40" cy="91" r="7"/><circle cx="62" cy="91" r="7"/><circle cx="18" cy="114" r="7"/><circle cx="40" cy="114" r="7"/><circle cx="62" cy="114" r="7"/><circle cx="18" cy="137" r="7"/><circle cx="40" cy="137" r="7"/><circle cx="62" cy="137" r="7"/><circle cx="18" cy="160" r="7"/><circle cx="40" cy="160" r="7"/><circle cx="62" cy="160" r="7"/></g></svg></button>
+  </div>
+  <div id="wheelpad" class="hidden"><svg viewBox="-110 -110 220 220"><circle r="96" fill="none" stroke="#2a2d31" stroke-width="22"/><circle r="96" fill="none" stroke="#45494f" stroke-width="4" stroke-dasharray="2 9"/><path d="M-80 -6 L-30 -10 L-30 12 L-82 18 Z M80 -6 L30 -10 L30 12 L82 18 Z" fill="#33373c"/><path d="M-22 18 L-52 72 L-34 82 L-8 26 Z M22 18 L52 72 L34 82 L8 26 Z" fill="#2d3135"/><ellipse rx="40" ry="34" fill="#3a3e43"/><ellipse rx="22" ry="12" fill="none" stroke="#9aa3ab" stroke-width="3"/><circle cx="-60" cy="2" r="5" fill="#555"/><circle cx="60" cy="2" r="5" fill="#555"/></svg></div>
+
+</div>
+
+<!-- ===== 메뉴 화면들 ===== -->
+<section id="s-title" class="screen">
+  <div class="t2-left">
+    <button data-go="settings" class="t2-ic" title="설정">⚙️</button>
+    <button data-go="map" class="t2-ic" title="맵 선택">🗺️</button>
+    <button data-go="mp" class="t2-ic" title="멀티플레이">👥</button>
+    <button data-go="admin" class="t2-ic" title="버스 관리자">🏢</button>
+    <button data-go="exit" class="t2-ic sm" title="게임 종료">⏻</button>
+  </div>
+  <div class="t2-right">
+    <div class="t2-money"><span class="coin">₩</span><b id="t-money"></b></div>
+    <button data-go="shop" class="t2-cart" title="자동차 상점">🛒<small>상점</small></button>
+  </div>
+  <button class="t2-quest" data-go="quest"><b>일일퀘스트</b><span id="t-quest"></span></button>
+  <div class="t2-bubble" id="t-bubble">로드 코리아에 오신 것을 환영합니다.<small>광주 · 서울 · 대전 · 부산 · 대구 · 인천, 실제 지도로 이어진 3D 오픈월드</small></div>
+  <button class="t-arrow left" id="t-prev" title="이전 차">◀</button>
+  <button class="t-arrow right" id="t-next" title="다음 차">▶</button>
+  <div class="t2-car"><b id="t-car"></b><small id="t-kind"></small><span id="t-plate"></span><button id="t-garage">🔧 꾸미기</button></div>
+  <div class="t2-player"><span class="t-ava">🧍</span><b id="t-name"></b></div>
+  <div class="t2-bar">
+    <button data-go="quest"><i>🏁</i>퀘스트</button>
+    <button data-go="shop"><i>🚘</i>자동차 상점</button>
+    <button data-go="char"><i>🚶</i>캐릭터 선택</button>
+    <button id="t-pick"><i>🚗</i>차 선택</button>
+    <button data-go="modes" class="play">플레이</button>
+  </div>
+  <small class="t-credit">지도 데이터 © OpenStreetMap contributors (ODbL) · 타일 © OpenMapTiles / OpenFreeMap</small>
+</section>
+
+<section id="s-modes" class="screen">
+  <div class="sheet">
+    <header><button data-go="title" class="back">←</button><h1>게임 모드 선택</h1></header>
+    <div id="modes-grid"></div>
+  </div>
+</section>
+
+<section id="s-bussetup" class="screen">
+  <div class="sheet">
+    <header><button data-go="modes" class="back">←</button><h1 id="bs-title">버스 운전</h1></header>
+    <div class="cols2">
+      <div><h3>노선 고르기</h3><div id="bs-routes" class="rows"></div></div>
+      <div><h3>버스 고르기</h3><div id="bs-buses" class="rows"></div>
+        <div class="tip">🚏 정류장에 멈추면 <b>1</b>로 앞문(승차), <b>2</b>로 뒷문(하차)을 열고, 승객이 다 타고 내리면 문을 닫고 출발해요. 하차벨이 울리면 꼭 세워 주세요!</div>
+        <button id="bs-start" class="primary big">운행 시작 ▶</button></div>
+    </div>
+  </div>
+</section>
+
+<section id="s-shop" class="screen">
+  <div class="sheet wide">
+    <header><button data-go="back" class="back">←</button><h1>차량 판매점</h1><span class="money-chip">💰 <b class="money-now"></b></span></header>
+    <div class="shop">
+      <div id="shop-brands"></div>
+      <div id="shop-list"></div>
+      <div id="shop-detail"></div>
+    </div>
+    <div id="compare-bar"></div>
+  </div>
+</section>
+
+<section id="s-garage" class="screen">
+  <div class="sheet wide">
+    <header><button data-go="back" class="back">←</button><h1>내 차고</h1><span class="money-chip">💰 <b class="money-now"></b></span></header>
+    <div class="garage"></div>
+  </div>
+</section>
+<section id="s-busgarage" class="screen">
+  <div class="sheet wide">
+    <header><button data-go="back" class="back">←</button><h1>버스 차고</h1><span class="money-chip">💰 <b class="money-now"></b></span></header>
+    <div class="garage"></div>
+  </div>
+</section>
+
+<section id="s-map" class="screen">
+  <div class="sheet wide">
+    <header><button data-go="back" class="back">←</button><h1 id="map-title">맵 선택 · 광주광역시</h1></header>
+    <div id="map-districts"></div>
+    <div class="mapgrid">
+      <div>
+        <h3>출발 위치</h3>
+        <div id="map-spawns"></div>
+        <div class="mapbox"><canvas id="map-canvas" width="760" height="420"></canvas>
+          <div class="map-ctl"><button id="map-zin" title="확대">＋</button><button id="map-zout" title="축소">－</button><button id="map-zfit" title="전체 보기">⤢</button></div>
+          <div class="map-lay"><button id="map-l-sub" class="sel">🚇 지하철</button><button id="map-l-pl" class="sel">🏫 학교·장소</button></div>
+          <div id="map-load" class="map-load hidden"></div>
+        </div>
+        <div id="map-info" class="map-info"></div>
+      </div>
+      <div>
+        <h3>시간 <span id="map-hour-l"></span></h3>
+        <input type="range" id="map-hour" min="0" max="23.9" step="0.1">
+        <div id="map-time-presets" class="opts small"><button data-h="5.6">🌅 새벽</button><button data-h="12">☀️ 낮</button><button data-h="18.4">🌇 일몰</button><button data-h="22">🌙 밤</button></div>
+        <h3>날씨</h3>
+        <div id="map-weather" class="opts small"></div>
+        <button id="map-go" class="primary big">확인</button>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="s-mp" class="screen">
+  <div class="sheet">
+    <header><button data-go="back" class="back">←</button><h1>👥 멀티플레이</h1></header>
+    <div class="cols2">
+      <div>
+        <h3>내 닉네임</h3>
+        <input id="mp-name" maxlength="12" style="width:100%">
+        <h3>채널</h3>
+        <div id="mp-ch" class="opts small"></div>
+        <div id="mp-status" class="tip"></div>
+        <button id="mp-go" class="primary big" style="width:100%">함께 달리기 ▶</button>
+        <button id="mp-leave" style="width:100%;margin-top:8px">멀티플레이 끄기</button>
+      </div>
+      <div>
+        <h3>이 채널에 있는 사람</h3>
+        <div id="mp-list" class="rows"></div>
+        <div class="tip">멀티플레이는 이 버전에서 준비 중이에요. 같은 링크를 열고 <b>같은 채널</b>에 들어오면 서로의 차가 보이고, 게임 중 <kbd>Enter</kbd>로 채팅할 수 있어요.<br>(Claude에 로그인한 사람만 접속할 수 있어요)</div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="s-char" class="screen">
+  <div class="sheet wide">
+    <header><button data-go="back" class="back">←</button><h1>🧍 캐릭터 선택</h1></header>
+    <div class="garage"><div class="pv" id="char-pv" style="height:480px"></div><div id="char-opts"></div></div>
+  </div>
+</section>
+<section id="s-quest" class="screen">
+  <div class="sheet">
+    <header><button data-go="back" class="back">←</button><h1>📋 일일 퀘스트</h1><span class="money-chip" id="q-left"></span></header>
+    <div id="q-list" class="rows"></div>
+    <p class="muted">퀘스트는 매일 밤 12시에 새로 바뀌어요.</p>
+  </div>
+</section>
+
+<section id="s-nav" class="screen">
+  <div class="sheet wide navsheet">
+    <header><button id="nav-close" class="back">←</button><h1>🧭 빛고을 내비</h1><span class="muted" id="nav-here"></span>
+      <div class="nav-opts"><label class="switch-l"><input type="checkbox" id="nav-voice"><i></i>음성 안내</label><label class="switch-l"><input type="checkbox" id="nav-3d"><i></i>3D 경로</label><label class="switch-l"><input type="checkbox" id="nav-auto"><i></i>미션 자동 안내</label></div></header>
+    <div class="nav-grid">
+      <div class="nav-left">
+        <div class="nav-search"><span>🔎</span><input id="nav-q" placeholder="장소·정류장·도로 검색 (초성도 돼요: ㄱㅈㅇ)" autocomplete="off"><button id="nav-qx" class="ico">✕</button></div>
+        <div id="nav-cats" class="chips"></div>
+        <div id="nav-quick" class="nav-quick"></div>
+        <div id="nav-results" class="nav-results"></div>
+      </div>
+      <div class="nav-right">
+        <div class="nav-mapwrap"><canvas id="nav-map" width="820" height="620"></canvas>
+          <div class="nav-maptools"><button id="nav-zin">＋</button><button id="nav-zout">－</button><button id="nav-me">◎</button></div>
+          <div class="nav-maphint">지도를 드래그해서 움직이고, 누르면 그 위치를 목적지로 정해요</div></div>
+        <div id="nav-plan" class="nav-plan"></div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<section id="s-admin" class="screen">
+  <div class="sheet wide adsheet">
+    <header><button data-go="back" class="back">←</button><h1>🏢 광주 시내버스 운영 관리자</h1><span class="muted" id="ad-day"></span><span class="money-chip">🏦 운영 자금 <b id="ad-cash"></b></span><span class="money-chip">💰 내 지갑 <b class="money-now"></b></span></header>
+    <div id="ad-tabs" class="tabs adtabs"></div>
+    <div id="ad-body"></div>
+  </div>
+</section>
+
+<section id="s-settings" class="screen">
+  <div class="sheet">
+    <header><button data-go="back" class="back">←</button><h1>설정</h1></header>
+    <div id="set-body" class="settings"></div>
+    <button id="set-save" class="primary big">저장</button>
+  </div>
+</section>
+
+<section id="s-pause" class="screen">
+  <div class="sheet narrow">
+    <header><h1>일시정지</h1><span class="money-chip">💰 <b class="money-now"></b></span></header>
+    <div class="menu-list">
+      <button id="p-resume" class="primary big">▶ 계속하기</button>
+      <button id="p-nav">🧭 내비게이션 · 목적지 설정</button>
+      <button data-go="admin">🏢 버스 운영 관리자</button>
+      <button data-go="map">🗺️ 맵 이동 · 시간 · 날씨</button>
+      <button data-go="shop">🏬 차량 구매</button>
+      <button data-go="garage">🚗 내 차고</button>
+      <button data-go="busgarage">🚌 버스 차고</button>
+      <button data-go="settings">⚙️ 설정</button>
+      <button data-go="help">❓ 조작법</button>
+      <button id="p-menu">🏠 메인 메뉴로</button>
+    </div>
+  </div>
+</section>
+
+<section id="s-help" class="screen">
+  <div class="sheet">
+    <header><button data-go="back" class="back">←</button><h1>조작법</h1></header>
+    <div class="help">
+      <div><h3>운전</h3>
+        <p><kbd>W</kbd> / <kbd>↑</kbd> 가속 · <kbd>S</kbd> / <kbd>↓</kbd> 브레이크 (멈춘 뒤 계속 누르면 후진)</p>
+        <p><kbd>A</kbd> <kbd>D</kbd> / <kbd>←</kbd> <kbd>→</kbd> 핸들 · <kbd>Space</kbd> 사이드 브레이크</p>
+        <p><kbd>H</kbd> 경적 · <kbd>L</kbd> 전조등 · <kbd>Z</kbd> <kbd>X</kbd> 왼쪽/오른쪽 깜빡이 · <kbd>V</kbd> 비상등 · <kbd>K</kbd> 와이퍼</p>
+        <p><kbd>E</kbd> 차에서 내리기·타기 / 주유·충전 · <kbd>C</kbd> 카메라 바꾸기 · <kbd>M</kbd> 사이드미러 화면</p>
+        <p>마우스 끌기: 둘러보기 · 휠: 확대/축소 · <kbd>Tab</kbd> 큰 지도 · <kbd>Esc</kbd> 일시정지</p></div>
+      <div><h3>버스</h3>
+        <p><kbd>1</kbd> 앞문 열기/닫기 (승차) · <kbd>2</kbd> 뒷문 열기/닫기 (하차)</p>
+        <p>정류장 표시(노란 기둥)에 앞문을 맞춰 멈추세요. 하차벨이 울리면 꼭 정차! 문을 연 채 달리면 벌금이에요.</p>
+        <p>버스는 승용차보다 회전반경이 크고 제동거리가 길어요. 교차로에서는 크게 돌고 일찍 브레이크를 밟으세요.</p></div>
+      <div><h3>도로 규칙</h3>
+        <p>🚦 빨간불 정지 · 제한속도 표지판 확인 · 파란 선 차로는 버스전용차로 · 노란 중앙선 넘지 않기</p>
+        <p>🚂 건널목 경보등이 깜빡이고 차단기가 내려가면 정지선에서 기다려요. 금남로 남쪽은 철도 아래로 지나가는 <b>금남 지하차도</b>예요.</p>
+        <p>🅿️ 주차 연습장의 경사로로 내려가면 <b>지하주차장(B1)</b>이 있어요. 높이제한 2.3m라 버스는 못 들어가요.</p>
+        <p>자유 카메라: <kbd>W A S D</kbd> 이동, <kbd>R</kbd>/<kbd>F</kbd> 위/아래, <kbd>Shift</kbd> 빠르게</p></div>
+    </div>
+  </div>
+</section>
+
+<section id="s-exit" class="screen">
+  <div class="sheet narrow center">
+    <h1>👋 수고하셨어요!</h1>
+    <p>진행 상황(돈, 차고, 발견한 장소)은 이 브라우저에 자동으로 저장됐어요.<br>이 탭을 닫으면 게임이 끝나요.</p>
+    <button id="exit-restart" class="primary big">다시 시작하기</button>
+  </div>
+</section>
+
+<div id="modal" class="hidden"></div>
+
+<div id="loading">
+  <canvas id="loadCv"></canvas>
+  <div class="ld-top"><span class="ld-brand">HANPAN GAMES</span><span class="ld-ver">v3 · 실제 지도</span></div>
+  <div class="ld-logo"><div class="ld-road">ROAD</div><div class="ld-korea">KOREA</div><div class="ld-kr">로 드 코 리 아</div></div>
+  <div class="ld-cities"><span>광주</span><span>서울</span><span>대전</span><span>부산</span><span>대구</span><span>인천</span></div>
+  <div class="ld-bottom">
+    <div class="ld-row"><div id="loadText">엔진 시동 거는 중...</div><b id="loadPct">0%</b></div>
+    <div class="load-bar"><i id="loadFill"></i></div>
+    <div id="loadTip">팁 · 버스 기사 모드에서는 정류장마다 문을 열고 승객을 태워야 해요.</div>
+  </div>
+  <div id="ldStart" class="hidden">화면을 눌러 시작</div>
+</div>
+<script>
+(function(){
+  var cv=document.getElementById('loadCv'),g=cv.getContext('2d'),t0=performance.now(),W,H,dpr=Math.min(2,devicePixelRatio||1);
+  var TIPS=['버스 기사 모드에서는 정류장마다 문을 열고 승객을 태워야 해요.','고속도로로 광주에서 서울 · 대전 · 부산 · 대구 · 인천까지 이어져요.','기차역에서 내려 걸어 들어가면 SRT · KTX를 타고 다른 도시로 갈 수 있어요.','공항에서는 비행기를 타고 김포 ↔ 광주 ↔ 김해로 이동해요.','C 키로 시점을 바꾸고, 버스는 실내 시점에서 승객을 볼 수 있어요.','설정 → 그래픽 품질에서 낮음을 고르면 휴대폰에서 더 부드러워요.','관리자 화면에서 버스 회사 · 배차 간격 · 지하철 노선을 관리할 수 있어요.'];
+  var FP=0,ti=0;setInterval(function(){var e=document.getElementById('loadTip');if(e&&!document.getElementById('loading').classList.contains('hidden')){ti=(ti+1)%TIPS.length;e.style.opacity=0;setTimeout(function(){e.textContent='팁 · '+TIPS[ti];e.style.opacity=1;},300);}},4200);
+  function rs(){W=innerWidth;H=innerHeight;cv.width=W*dpr;cv.height=H*dpr;cv.style.width=W+'px';cv.style.height=H+'px';}
+  rs();addEventListener('resize',rs);
+  var bld=[];for(var i=0;i<80;i++)bld.push({x:Math.random()*2-1,w:0.02+Math.random()*0.05,h:0.05+Math.random()*0.28,l:Math.random()});
+  var cars=[];for(i=0;i<26;i++)cars.push({z:Math.random(),lane:(Math.random()<0.5?-1:1)*(0.15+Math.random()*0.5),sp:0.12+Math.random()*0.2});
+  function f(t){
+    var L=document.getElementById('loading');if(L.classList.contains('hidden'))return;requestAnimationFrame(f);
+    var T=(t-t0)/1000;g.setTransform(dpr,0,0,dpr,0,0);
+    var hz=H*0.56,sky=g.createLinearGradient(0,0,0,hz);sky.addColorStop(0,'#05060f');sky.addColorStop(0.6,'#1a1240');sky.addColorStop(1,'#ff5a3c');g.fillStyle=sky;g.fillRect(0,0,W,hz);
+    g.fillStyle='rgba(255,255,255,.7)';for(i=0;i<60;i++){var sx=(i*137.5%W),sy=(i*71.3%(hz*0.6));g.globalAlpha=0.3+0.3*Math.sin(T*2+i);g.fillRect(sx,sy,1.5,1.5);}g.globalAlpha=1;
+    g.fillStyle='rgba(255,140,80,.25)';g.beginPath();g.arc(W/2,hz,H*0.22,Math.PI,0);g.fill();
+    for(i=0;i<bld.length;i++){var b=bld[i],bx=W/2+b.x*W*0.6,bw=b.w*W*0.5,bh=b.h*H;g.fillStyle='#0c0b1e';g.fillRect(bx,hz-bh,bw,bh);g.fillStyle='rgba(255,210,120,.55)';for(var wy=hz-bh+6;wy<hz-6;wy+=9)for(var wx=bx+4;wx<bx+bw-4;wx+=8)if(((wx*7+wy*3+((T*0.3+b.l)*3|0))|0)%5===0)g.fillRect(wx,wy,3,4);}
+    // 남산타워 비슷한 탑 실루엣
+    g.fillStyle='#0c0b1e';g.fillRect(W*0.72,hz-H*0.36,4,H*0.36);g.fillRect(W*0.72-8,hz-H*0.3,20,10);
+    var rd=g.createLinearGradient(0,hz,0,H);rd.addColorStop(0,'#141420');rd.addColorStop(1,'#2a2a36');g.fillStyle=rd;g.beginPath();g.moveTo(W/2-6,hz);g.lineTo(W/2+6,hz);g.lineTo(W*1.1,H);g.lineTo(-W*0.1,H);g.fill();
+    for(i=0;i<14;i++){var z=((i/14)+T*0.55)%1,z2=z+0.03,y1=hz+(H-hz)*z*z,y2=hz+(H-hz)*Math.min(1,z2*z2);g.fillStyle='rgba(255,255,255,'+(0.2+z*0.6)+')';var w1=2+z*10;g.fillRect(W/2-w1/2,y1,w1,Math.max(1,y2-y1));}
+    g.fillStyle='rgba(255,200,40,.8)';for(var sgn=-1;sgn<=1;sgn+=2){g.beginPath();g.moveTo(W/2+sgn*3,hz);g.lineTo(W/2+sgn*W*0.6,H);g.lineTo(W/2+sgn*W*0.6+sgn*6,H);g.lineTo(W/2+sgn*4,hz);g.fill();}
+    for(i=0;i<cars.length;i++){var c=cars[i];c.z+=c.sp*0.016*(c.lane>0?1:-0.6);if(c.z>1)c.z-=1;if(c.z<0)c.z+=1;var zz=c.z*c.z,cy=hz+(H-hz)*zz,cx=W/2+c.lane*W*0.55*zz,s=1+zz*14;g.fillStyle=c.lane>0?'rgba(255,60,60,.9)':'rgba(255,250,220,.95)';g.shadowColor=g.fillStyle;g.shadowBlur=10;g.fillRect(cx-s*1.2,cy,s*0.7,s*0.4);g.fillRect(cx+s*0.5,cy,s*0.7,s*0.4);g.shadowBlur=0;}
+    var vg=g.createRadialGradient(W/2,H/2,H*0.3,W/2,H/2,H);vg.addColorStop(0,'rgba(0,0,0,0)');vg.addColorStop(1,'rgba(0,0,0,.65)');g.fillStyle=vg;g.fillRect(0,0,W,H);
+    FP+=(92-FP)*0.012;var fl=document.getElementById('loadFill'),pc=document.getElementById('loadPct');if(fl&&(parseFloat(fl.style.width)||0)<FP)fl.style.width=FP+'%';if(fl&&pc)pc.textContent=Math.round(parseFloat(fl.style.width)||0)+'%';
+  }
+  requestAnimationFrame(f);
+})();
+</script>
+
+<div id="worldPill" class="hidden"><i></i><span>광주 지도를 준비하는 중...</span></div>
+<div id="errbox" class="hidden"></div>
+<script>
+  function __showErr(m){var b=document.getElementById('errbox');if(!b)return;b.classList.remove('hidden');b.textContent='⚠️ 오류가 났어요 (이 문구를 개발자에게 알려 주세요): '+m;}
+  window.addEventListener('error',function(e){__showErr((e.message||'')+' @ '+((e.filename||'').split('/').pop())+':'+e.lineno);});
+  window.addEventListener('unhandledrejection',function(e){__showErr(String(e.reason&&e.reason.stack||e.reason).slice(0,300));});
+</script>
+<script type="module" src="js/main.js"></script>
+<a href="../index.html" id="hanpanHome" style="position:fixed;left:50%;bottom:6px;transform:translateX(-50%);z-index:9999;font:700 12px sans-serif;color:#fff;background:rgba(0,0,0,.45);padding:4px 10px;border-radius:99px;text-decoration:none;opacity:.7">← 한판 HANPAN</a>
+</body>
+</html>

@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>한판 미니 — 가볍게 한 판</title>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #101018; color: #fff; font-family: "Pretendard", "Noto Sans KR", system-ui, sans-serif; user-select: none; -webkit-user-select: none; }
+button { font: inherit; color: #fff; border: 0; border-radius: 12px; padding: 10px 16px; cursor: pointer; font-weight: 800; background: rgba(255,255,255,.1); }
+button.primary { background: linear-gradient(180deg, #ffcc33, #ff8a00); color: #2a1600; }
+.hidden { display: none !important; }
+#hub { position: fixed; inset: 0; overflow: auto; padding: 28px 5vw 40px; background: radial-gradient(900px 420px at 20% 0%, #4b2cff55, transparent), radial-gradient(700px 400px at 90% 10%, #ff8a0044, transparent), #101018; }
+.logo { font-size: clamp(38px, 6vw, 64px); font-weight: 900; letter-spacing: -1px; margin: 0; }
+.logo span { color: #ffcc33; }
+.sub { opacity: .75; margin: 4px 0 22px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 16px; }
+.card { position: relative; text-align: left; padding: 0; overflow: hidden; border-radius: 20px; background: #1b1b28; border: 1px solid rgba(255,255,255,.08); transition: transform .12s; }
+.card:hover { transform: translateY(-3px); }
+.card canvas { display: block; width: 100%; aspect-ratio: 16/10; }
+.card .t { padding: 12px 14px 14px; } .card b { font-size: 20px; display: block; } .card small { opacity: .75; font-weight: 500; display: block; margin-top: 3px; line-height: 1.4; }
+.card .best { position: absolute; top: 10px; right: 10px; background: rgba(0,0,0,.55); padding: 4px 9px; border-radius: 99px; font-size: 12px; color: #ffcc33; }
+#game { position: fixed; inset: 0; background: #07070c; touch-action: none; }
+#cv { position: absolute; touch-action: none; }
+#bar { position: absolute; left: 0; right: 0; top: 0; display: flex; gap: 8px; align-items: center; padding: 8px; pointer-events: none; }
+#bar button { pointer-events: auto; padding: 8px 12px; background: rgba(0,0,0,.45); }
+#gtitle { font-weight: 800; opacity: .85; text-shadow: 0 1px 3px #000; }
+#over { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.6); }
+.box { background: #1b1b28; border-radius: 22px; padding: 26px 30px; text-align: center; min-width: 280px; border: 1px solid rgba(255,255,255,.12); }
+.box h2 { margin: 0 0 6px; font-size: 30px; } .box .sc { font-size: 54px; font-weight: 900; color: #ffcc33; } .box .row { display: flex; gap: 10px; justify-content: center; margin-top: 16px; }
+.help { opacity: .7; font-size: 13px; margin-top: 8px; }
+</style>
+</head>
+<body>
+<div id="hub">
+  <h1 class="logo">한판 <span>미니</span></h1>
+  <div class="sub">짧고 가볍게 한 판씩 · 최고 기록은 이 기기에 저장돼요 · 한판 HANPAN</div>
+  <div class="grid" id="cards"></div>
+</div>
+<div id="game" class="hidden">
+  <canvas id="cv"></canvas>
+  <div id="bar"><button id="back">← 목록</button><button id="pz">❚❚ 멈춤</button><span id="gtitle"></span></div>
+  <div id="over" class="hidden"></div>
+</div>
+<script type="module" src="./js/hub.js"></script>
+<a href="../index.html" id="hanpanHome" style="position:fixed;left:50%;bottom:6px;transform:translateX(-50%);z-index:9999;font:700 12px sans-serif;color:#fff;background:rgba(0,0,0,.45);padding:4px 10px;border-radius:99px;text-decoration:none;opacity:.7">← 한판 HANPAN</a>
+</body>
+</html>

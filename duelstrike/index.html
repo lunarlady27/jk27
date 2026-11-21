@@ -1,0 +1,57 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>듀얼 스트라이크 — 대전 격투</title>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #0b0b12; color: #fff; font-family: "Pretendard", "Noto Sans KR", system-ui, sans-serif; user-select: none; -webkit-user-select: none; touch-action: none; }
+button { font: inherit; color: #fff; background: rgba(255,255,255,.08); border: 2px solid rgba(255,255,255,.18); border-radius: 10px; padding: 9px 14px; cursor: pointer; font-weight: 700; }
+button.primary { background: linear-gradient(180deg, #ff3d3d, #b3141f); border: 0; } button.sel { border-color: #ffd23a; background: rgba(255,210,58,.15); } button.big { font-size: 22px; padding: 14px 34px; } button:disabled { opacity: .4; }
+input { font: inherit; background: rgba(255,255,255,.08); color: #fff; border: 2px solid rgba(255,255,255,.2); border-radius: 10px; padding: 9px; }
+.hidden { display: none !important; } .muted { opacity: .7; font-size: 13px; } .row { display: flex; gap: 8px; flex-wrap: wrap; align-items: center; margin: 8px 0; }
+.screen { position: fixed; inset: 0; overflow: auto; }
+#menu { padding: 20px 4vw 40px; background: radial-gradient(800px 400px at 50% 0%, #b3141f88, transparent), #0b0b12; }
+h1.logo { margin: 0; font-size: clamp(42px, 7vw, 80px); font-weight: 900; font-style: italic; letter-spacing: -1px; background: linear-gradient(180deg, #fff 20%, #ff3d3d 80%); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.sub { opacity: .85; margin-bottom: 10px; } #rec { color: #ffd23a; font-weight: 800; }
+.chs { display: grid; grid-template-columns: repeat(4, minmax(120px, 1fr)); gap: 10px; }
+.ch { padding: 0; overflow: hidden; text-align: left; border-radius: 14px; } .ch img { width: 100%; display: block; aspect-ratio: 9/10; object-fit: cover; } .ch b { display: block; padding: 6px 10px 0; font-size: 18px; color: var(--c); filter: brightness(1.4); } .ch small { display: block; padding: 0 10px 8px; opacity: .8; }
+.ch.sel { outline: 4px solid #ffd23a; }
+h3 { margin: 16px 0 6px; } #info { margin: 8px 0; } #info em { color: #ffd23a; font-style: normal; }
+#lobby { display: grid; place-items: center; } .card { background: #171722; border: 1px solid rgba(255,255,255,.15); border-radius: 18px; padding: 22px; width: min(560px, 94vw); }
+.code { color: #ffd23a; font-family: ui-monospace, monospace; letter-spacing: 5px; font-size: 30px; }
+#play { display: grid; place-items: center; background: #000; } #cv { display: block; }
+#end, #pause { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.5); } #end h1 { font-size: 72px; margin: 0; } #end h1.win { color: #ffd23a; } #end h1.lose { color: #ff6b6b; }
+.keys { font-size: 13px; opacity: .8; line-height: 1.6; }
+#tpad { position: absolute; inset: 0; pointer-events: none; } #tpad button { pointer-events: auto; position: absolute; width: 62px; height: 62px; border-radius: 50%; padding: 0; font-size: 15px; background: rgba(255,255,255,.12); } #tpad button.on { background: rgba(255,210,58,.4); }
+@media (max-width: 700px) { .chs { grid-template-columns: repeat(2, 1fr); } }
+</style>
+</head>
+<body>
+<div id="menu" class="screen">
+  <h1 class="logo">DUEL STRIKE</h1><div class="sub">듀얼 스트라이크 · 1대1 대전 격투 · 한판 HANPAN · <span id="rec"></span></div>
+  <h3>1P 캐릭터</h3><div id="p1sel" class="chs"></div>
+  <div id="info"></div>
+  <h3>대전 방식</h3><div id="modes" class="row"></div>
+  <div id="p2box"><h3>상대 (2P · 컴퓨터)</h3><div id="p2sel" class="chs"></div><div class="row"><span>컴퓨터 실력</span><span id="diffs" class="row" style="margin:0"></span></div></div>
+  <div class="row"><span>무대</span><span id="stages" class="row" style="margin:0"></span></div>
+  <div id="onl" class="hidden"><div class="row"><button id="mk">방 만들기</button><input id="code" placeholder="방 코드" maxlength="12" style="width:120px"><button id="jn">참가</button></div><p id="onl-note" class="muted"></p></div>
+  <div class="row"><button id="fight" class="primary big">⚔️ 대전 시작</button></div>
+  <div class="keys">1P: A/D 이동 · W 점프 · S 앉기 · 뒤로 누르면 막기 (앉아 막기는 아래+뒤) · J 약손 · K 강손 · L 발차기 · U 필살기 (앞+U, 아래+U는 다른 필살기) · I 초필살 (게이지 가득) · 공격이 맞는 순간 U로 이어 치기<br>2P: 방향키 · 숫자패드 1/2/3 공격 · 4 필살 · 5 초필살 (또는 , . / ; ')</div>
+</div>
+<div id="lobby" class="screen hidden"></div>
+<div id="play" class="screen hidden">
+  <canvas id="cv" width="1280" height="720"></canvas>
+  <div id="tpad" class="hidden">
+    <button data-k="l" style="left:20px;bottom:90px">◀</button><button data-k="r" style="left:150px;bottom:90px">▶</button><button data-k="u" style="left:85px;bottom:160px">▲</button><button data-k="d" style="left:85px;bottom:22px">▼</button>
+    <button data-k="lp" style="right:160px;bottom:100px">약손</button><button data-k="hp" style="right:90px;bottom:140px">강손</button><button data-k="lk" style="right:20px;bottom:100px">발</button><button data-k="sp" style="right:90px;bottom:60px;background:rgba(255,80,80,.35)">필살</button><button data-k="su" style="right:20px;bottom:180px;background:rgba(255,210,58,.35)">초필</button>
+    <button id="tpause" style="left:50%;top:10px;width:46px;height:46px;margin-left:-23px">⏸</button>
+  </div>
+  <div id="pause" class="hidden"></div>
+  <div id="end" class="hidden"></div>
+</div>
+<script type="module" src="./js/main.js"></script>
+<a href="../index.html" id="hanpanHome" style="position:fixed;left:50%;bottom:6px;transform:translateX(-50%);z-index:9999;font:700 12px sans-serif;color:#fff;background:rgba(0,0,0,.45);padding:4px 10px;border-radius:99px;text-decoration:none;opacity:.7">← 한판 HANPAN</a>
+</body>
+</html>
