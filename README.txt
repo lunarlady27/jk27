@@ -18,6 +18,7 @@
 - lastisland/  라스트 아일랜드 (배틀로얄)
 - duelstrike/  듀얼 스트라이크 (1대1 대전 격투)
 - hanpanmini/  한판 미니 (가벼운 게임 5종)
+- turbocircuit/ 터보 서킷 (3D 카트 레이싱 · 드리프트 부스트 · 아이템 · 그랑프리 · 타임 어택)
 - vendor/      공용 3D 엔진 (three.js r160, MIT 라이선스)
 
 [참고]

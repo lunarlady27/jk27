@@ -1,0 +1,86 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>터보 서킷 — 카트 레이싱</title>
+<script type="importmap">{ "imports": { "three": "../vendor/three/three.module.js" } }</script>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #0b1020; color: #fff; font-family: "Pretendard", "Noto Sans KR", system-ui, sans-serif; user-select: none; -webkit-user-select: none; touch-action: none; }
+button { font: inherit; color: #fff; background: rgba(255,255,255,.1); border: 2px solid rgba(255,255,255,.2); border-radius: 10px; padding: 9px 14px; cursor: pointer; font-weight: 700; }
+button:hover { border-color: rgba(255,255,255,.45); }
+button.primary { background: linear-gradient(180deg, #ff6a3d, #ff3d6e); border: 0; color: #fff; } button.sel { border-color: #ffcc33; background: rgba(255,204,51,.16); } button.big { font-size: 20px; padding: 14px 28px; }
+input { font: inherit; background: rgba(255,255,255,.1); color: #fff; border: 2px solid rgba(255,255,255,.2); border-radius: 10px; padding: 9px; }
+.hidden { display: none !important; } .muted { opacity: .7; font-size: 13px; line-height: 1.6; } .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+.screen { position: fixed; inset: 0; overflow: auto; }
+#menu { display: grid; place-items: center; padding: 20px; background: radial-gradient(900px 500px at 50% 120%, #ff3d6e55, transparent), radial-gradient(700px 400px at 10% -10%, #36d1c444, transparent), linear-gradient(180deg, #14183a, #0b1020 70%); }
+.logo { text-align: center; } .logo h1 { margin: 0; font-size: clamp(40px, 8vw, 84px); font-weight: 900; font-style: italic; letter-spacing: -2px; background: linear-gradient(180deg, #fff, #ffcc33 60%, #ff6a3d); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.logo p { margin: 2px 0 16px; opacity: .85; }
+.card { background: rgba(18,24,48,.92); border: 1px solid rgba(255,255,255,.15); border-radius: 18px; padding: 18px 20px; width: min(720px, 94vw); }
+.card h3 { margin: 14px 0 6px; font-size: 15px; opacity: .8; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 8px; }
+.opt { text-align: left; display: flex; flex-direction: column; gap: 3px; padding: 10px 12px; }
+.opt b { font-size: 16px; } .opt small { opacity: .7; font-weight: 500; font-size: 12px; line-height: 1.4; }
+.bars { display: grid; grid-template-columns: 40px 1fr; gap: 2px 6px; font-size: 11px; font-weight: 600; opacity: .9; margin-top: 4px; }
+.bars i { display: block; height: 6px; margin-top: 4px; border-radius: 3px; background: rgba(255,255,255,.12); overflow: hidden; } .bars i span { display: block; height: 100%; background: var(--c); }
+.sw { display: inline-block; width: 14px; height: 14px; border-radius: 4px; background: var(--c); vertical-align: -2px; margin-right: 4px; }
+#rec { color: #ffcc33; font-weight: 800; font-size: 14px; }
+#play { overflow: hidden; } #view { position: absolute; inset: 0; } #view canvas { display: block; }
+.hud { position: absolute; pointer-events: none; text-shadow: 0 2px 4px rgba(0,0,0,.6); }
+#hpos { left: 18px; top: 12px; font-size: 64px; font-weight: 900; font-style: italic; line-height: 1; } #hpos small { font-size: 26px; opacity: .8; }
+#hlap { left: 20px; top: 84px; font-size: 20px; font-weight: 800; } #htime { left: 20px; top: 112px; font-size: 16px; font-weight: 700; opacity: .9; font-variant-numeric: tabular-nums; }
+#hitem { right: 16px; top: 12px; width: 92px; height: 92px; border-radius: 18px; background: rgba(0,0,0,.45); border: 3px solid rgba(255,255,255,.5); display: grid; place-items: center; font-size: 52px; }
+#hitem.roll { animation: roll .12s infinite; } @keyframes roll { 50% { transform: scale(.9) rotate(8deg); } }
+#hitem em { position: absolute; right: 6px; bottom: 2px; font-size: 18px; font-style: normal; font-weight: 900; }
+#hspeed { right: 20px; bottom: 18px; font-size: 44px; font-weight: 900; font-style: italic; text-align: right; font-variant-numeric: tabular-nums; } #hspeed small { font-size: 16px; opacity: .8; }
+#hcharge { right: 20px; bottom: 78px; width: 150px; height: 10px; border-radius: 5px; background: rgba(0,0,0,.4); overflow: hidden; } #hcharge i { display: block; height: 100%; width: 0; background: #36c8ff; }
+#mini { position: absolute; left: 14px; bottom: 14px; width: 170px; height: 170px; pointer-events: none; opacity: .92; }
+#hboard { left: 18px; top: 140px; font-size: 13px; font-weight: 700; } #hboard div { background: rgba(0,0,0,.35); margin-bottom: 2px; padding: 2px 8px; border-radius: 5px; width: 140px; } #hboard div.me { background: rgba(255,106,61,.7); }
+#hmsg { left: 0; right: 0; top: 32%; text-align: center; font-size: 72px; font-weight: 900; font-style: italic; transition: opacity .3s; }
+#hsub { left: 0; right: 0; top: 18%; text-align: center; font-size: 24px; font-weight: 800; }
+#hwrong { left: 0; right: 0; top: 44%; text-align: center; font-size: 40px; font-weight: 900; color: #ff4b4b; }
+#overlay { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(5,8,20,.6); z-index: 20; }
+table { border-collapse: collapse; width: 100%; font-size: 15px; } td, th { padding: 6px 8px; text-align: left; border-bottom: 1px solid rgba(255,255,255,.08); } tr.me td { background: rgba(255,106,61,.25); font-weight: 800; } th { opacity: .6; font-size: 12px; }
+.num { text-align: right; font-variant-numeric: tabular-nums; }
+#tpad { position: absolute; inset: 0; pointer-events: none; }
+#tpad button { pointer-events: auto; position: absolute; width: 74px; height: 74px; border-radius: 50%; padding: 0; font-size: 26px; background: rgba(255,255,255,.14); }
+#tpad button.on { background: rgba(255,204,51,.5); }
+body.touch #mini { left: auto; right: 12px; top: 112px; bottom: auto; width: 110px; height: 110px; } body.touch #hspeed { right: auto; left: 20px; bottom: auto; top: 136px; font-size: 26px; text-align: left; } body.touch #hcharge { right: auto; left: 20px; bottom: auto; top: 172px; width: 110px; }
+body.touch #hboard { display: none; }
+</style>
+</head>
+<body>
+<div id="menu" class="screen"><div>
+  <div class="logo"><h1>TURBO CIRCUIT</h1><p>터보 서킷 · 드리프트로 모아서 부스트! · 한판 HANPAN</p></div>
+  <div class="card">
+    <div class="row"><span>닉네임</span><input id="nick" maxlength="10" style="flex:1"><span id="rec"></span></div>
+    <h3>모드</h3><div id="modes" class="row" style="margin:0"></div>
+    <h3>트랙</h3><div id="tracks" class="grid"></div>
+    <h3>카트</h3><div id="karts" class="grid"></div>
+    <h3>설정</h3>
+    <div class="row" style="margin:0"><span>상대 실력</span><span id="diffs" class="row" style="margin:0"></span></div>
+    <div class="row" style="margin:6px 0 0"><span>바퀴 수</span><span id="lapsel" class="row" style="margin:0"></span></div>
+    <div class="row"><button id="go" class="primary big">🏁 출발!</button><span id="best" class="muted"></span></div>
+    <p class="muted">⬆/W 가속 · ⬇/S 브레이크·후진 · ⬅➡/AD 핸들 · <b>Space / Shift 드리프트</b> (꺾으면서 누르고 있다가 떼면 부스트, 파랑 → 주황) · <b>E / Ctrl 아이템</b> · Esc 일시정지 · 출발 신호 직전(GO 바로 전)에 가속하면 스타트 부스트!</p>
+  </div>
+</div></div>
+<div id="play" class="screen hidden">
+  <div id="view"></div>
+  <div id="hpos" class="hud"></div><div id="hlap" class="hud"></div><div id="htime" class="hud"></div><div id="hboard" class="hud"></div>
+  <div id="hitem" class="hud"></div>
+  <div id="hspeed" class="hud"></div><div id="hcharge" class="hud"><i></i></div>
+  <canvas id="mini" width="340" height="340"></canvas>
+  <div id="hsub" class="hud"></div><div id="hmsg" class="hud"></div><div id="hwrong" class="hud"></div>
+  <div id="tpad" class="hidden">
+    <button data-k="left" style="left:18px;bottom:30px">◀</button><button data-k="right" style="left:104px;bottom:30px">▶</button>
+    <button data-k="brk" style="right:18px;bottom:30px;font-size:16px">브레이크</button><button data-k="drift" style="right:104px;bottom:30px;font-size:16px">드리프트</button>
+    <button data-k="use" style="right:190px;bottom:30px">🎁</button>
+    <button data-k="pause" style="right:122px;top:20px;width:46px;height:46px;font-size:18px">⏸</button>
+  </div>
+  <div id="overlay" class="hidden"></div>
+</div>
+<script type="module" src="./js/main.js"></script>
+<a href="../index.html" id="hanpanHome" style="position:fixed;left:50%;bottom:6px;transform:translateX(-50%);z-index:9999;font:700 12px sans-serif;color:#fff;background:rgba(0,0,0,.45);padding:4px 10px;border-radius:99px;text-decoration:none;opacity:.7">← 한판 HANPAN</a>
+</body>
+</html>
