@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>코어 브레이커 — 5대5 전술 슈팅</title>
+<script type="importmap">
+{ "imports": { "three": "../vendor/three/three.module.js" } }
+</script>
+<style>
+:root { --bg: #0b1016; --panel: rgba(12,18,26,.82); --line: rgba(255,255,255,.12); --txt: #eef3f7; --mut: #93a3b3; --atk: #ff6a3d; --def: #36d1c4; --acc: #ffd23a; --xc: #5dffb0; }
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; background: var(--bg); color: var(--txt); font-family: "Pretendard", "Noto Sans KR", system-ui, sans-serif; overflow: hidden; user-select: none; -webkit-user-select: none; }
+button { font: inherit; color: var(--txt); background: rgba(255,255,255,.06); border: 1px solid var(--line); border-radius: 10px; padding: 9px 14px; cursor: pointer; transition: .15s; }
+button:hover:not(:disabled) { background: rgba(255,255,255,.12); border-color: rgba(255,255,255,.3); }
+button:disabled { opacity: .4; cursor: not-allowed; }
+button.primary { background: linear-gradient(135deg, #ff6a3d, #ff3d6e); border: 0; font-weight: 800; }
+button.sel { border-color: var(--acc); background: rgba(255,210,58,.14); }
+button.big { padding: 14px 26px; font-size: 18px; }
+button.danger { color: #ff8d8d; }
+input[type=text] { font: inherit; background: rgba(255,255,255,.06); color: var(--txt); border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; }
+.hidden { display: none !important; }
+.muted { color: var(--mut); font-size: 13px; }
+.row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+.col { display: flex; flex-direction: column; gap: 8px; }
+.screen { position: fixed; inset: 0; overflow: auto; }
+/* 메인 메뉴 */
+#menu { display: grid; place-items: center; background: radial-gradient(1200px 600px at 70% 20%, rgba(255,106,61,.25), transparent), radial-gradient(900px 500px at 10% 90%, rgba(54,209,196,.2), transparent), #0b1016; }
+.title { text-align: center; margin-bottom: 22px; }
+.title h1 { margin: 0; font-size: clamp(44px, 8vw, 92px); font-weight: 900; letter-spacing: -2px; line-height: .9; background: linear-gradient(120deg, #fff 30%, #ff6a3d 60%, #ffd23a); -webkit-background-clip: text; background-clip: text; color: transparent; font-style: italic; }
+.title p { margin: 8px 0 0; color: var(--mut); letter-spacing: 6px; font-size: 13px; }
+.mbox { width: min(440px, 92vw); background: var(--panel); border: 1px solid var(--line); border-radius: 18px; padding: 20px; backdrop-filter: blur(8px); }
+.mbox .col button { text-align: left; }
+#mp-note { margin-top: 6px; }
+/* 요원 */
+#agents, #lobby, #help, #setscr { background: #0b1016; padding: 26px; }
+.agents { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 12px; margin: 14px 0; }
+.agents.mini { grid-template-columns: repeat(auto-fill, minmax(170px, 1fr)); }
+.agent { text-align: left; padding: 0; overflow: hidden; border-radius: 14px; }
+.agent .face svg { display: block; width: 100%; height: 130px; }
+.agents.mini .agent .face svg { height: 80px; }
+.agent b { display: block; padding: 8px 12px 0; font-size: 18px; color: var(--c); }
+.agent small { display: block; padding: 2px 12px; color: var(--mut); }
+.agent .sk { display: flex; flex-direction: column; gap: 3px; padding: 8px 12px 12px; font-size: 13px; }
+.agent .sk i { font-style: normal; background: rgba(255,255,255,.12); border-radius: 5px; padding: 0 5px; margin-right: 6px; font-weight: 800; }
+.agent.sel { outline: 3px solid var(--c); background: rgba(255,255,255,.08); }
+.teams { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.teams ul { list-style: none; padding: 0; margin: 6px 0; min-height: 80px; }
+.teams li { padding: 8px 10px; border-left: 4px solid var(--c); background: rgba(255,255,255,.05); border-radius: 8px; margin-bottom: 5px; }
+.teams li small { color: var(--mut); margin-left: 6px; } .teams li em { font-style: normal; font-size: 11px; background: var(--acc); color: #000; border-radius: 4px; padding: 0 4px; }
+.code { font-family: ui-monospace, monospace; font-size: 30px; letter-spacing: 6px; color: var(--acc); }
+/* 게임 */
+#play { overflow: hidden; }
+#view { position: absolute; inset: 0; }
+#view canvas { display: block; width: 100%; height: 100%; }
+.hud { position: absolute; pointer-events: none; text-shadow: 0 1px 3px rgba(0,0,0,.8); }
+#top { left: 50%; top: 10px; transform: translateX(-50%); display: flex; align-items: center; gap: 14px; }
+#top .side { display: flex; align-items: center; gap: 10px; }
+#top .sc { font-size: 34px; font-weight: 900; min-width: 34px; text-align: center; }
+#top .clock { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 4px 18px; text-align: center; min-width: 96px; }
+#top .clock b { display: block; font-size: 24px; font-variant-numeric: tabular-nums; }
+#top .clock b.core { color: #ff4d4d; }
+#top .clock small { color: var(--mut); font-size: 11px; display: block; }
+.icons { display: flex; gap: 3px; }
+i.ag { font-style: normal; display: inline-grid; place-items: center; width: 26px; height: 26px; border-radius: 7px; background: var(--c); color: #0b1016; font-weight: 900; font-size: 13px; border: 2px solid rgba(255,255,255,.4); }
+i.ag.dead { filter: grayscale(1) brightness(.4); border-color: transparent; }
+#hp { left: 22px; bottom: 22px; display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap; width: 260px; }
+.hpv b { font-size: 46px; font-weight: 900; line-height: 1; } .hpv small { display: block; color: var(--mut); font-size: 11px; }
+.hpv.ar b { font-size: 26px; color: #8fd0ff; }
+.hpbar { width: 100%; height: 6px; background: rgba(255,255,255,.15); border-radius: 3px; overflow: hidden; } .hpbar i { display: block; height: 100%; background: linear-gradient(90deg, #5dffb0, #e8ff6a); }
+#ammo { right: 24px; bottom: 22px; text-align: right; }
+#ammo small { color: var(--mut); } #ammo b { font-size: 50px; font-weight: 900; } #ammo span { font-size: 20px; color: var(--mut); margin-left: 4px; }
+#ammo em { display: block; font-style: normal; color: var(--acc); } #ammo em.warn { color: #ff6b6b; }
+#ammo .cr { color: var(--acc); font-weight: 800; margin-top: 4px; }
+#abil { left: 50%; bottom: 20px; transform: translateX(-50%); display: flex; gap: 10px; align-items: flex-end; }
+.ab { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 6px 10px; text-align: center; min-width: 74px; position: relative; }
+.ab .key { position: absolute; top: -9px; left: 50%; transform: translateX(-50%); background: #fff; color: #000; font-weight: 900; font-size: 11px; border-radius: 5px; padding: 0 6px; }
+.ab i { font-style: normal; font-size: 22px; display: block; } .ab small { font-size: 11px; color: var(--mut); display: block; } .ab b { font-size: 10px; color: var(--acc); letter-spacing: 2px; }
+.ab.off { opacity: .45; }
+.agname { font-weight: 900; font-size: 15px; padding: 0 6px 6px; } .agname small { display: block; color: var(--mut); font-weight: 600; font-size: 11px; }
+#feed { right: 16px; top: 14px; display: flex; flex-direction: column; gap: 4px; align-items: flex-end; }
+#feed div { background: var(--panel); border-radius: 6px; padding: 4px 10px; font-size: 13px; display: flex; gap: 8px; }
+#feed span { color: var(--mut); }
+#msg { left: 50%; top: 22%; transform: translateX(-50%); text-align: center; transition: opacity .3s; }
+#msg b { display: block; font-size: 36px; font-weight: 900; letter-spacing: -1px; } #msg small { color: #dfe6ec; font-size: 15px; }
+#hint { left: 50%; bottom: 120px; transform: translateX(-50%); color: var(--acc); font-weight: 700; font-size: 14px; }
+#prog { left: 50%; top: 62%; transform: translateX(-50%); width: 260px; text-align: center; display: none; }
+#prog div { height: 8px; background: rgba(255,255,255,.18); border-radius: 4px; overflow: hidden; margin-top: 4px; } #prog i { display: block; height: 100%; background: var(--acc); }
+#minimap { position: absolute; left: 14px; top: 14px; width: 210px; height: 210px; border-radius: 50%; background: rgba(10,14,20,.72); border: 2px solid rgba(255,255,255,.25); pointer-events: none; }
+/* 십자선 */
+#xhair { left: 50%; top: 50%; width: 0; height: 0; --gap: 4px; }
+#xhair i { position: absolute; background: var(--xc); box-shadow: 0 0 0 1px rgba(0,0,0,.7); }
+#xhair i:nth-child(1) { width: 2px; height: 7px; left: -1px; bottom: var(--gap); } #xhair i:nth-child(2) { width: 2px; height: 7px; left: -1px; top: var(--gap); }
+#xhair i:nth-child(3) { height: 2px; width: 7px; top: -1px; right: var(--gap); } #xhair i:nth-child(4) { height: 2px; width: 7px; top: -1px; left: var(--gap); }
+#xhair i:nth-child(5) { width: 2px; height: 2px; left: -1px; top: -1px; }
+#xhair.scoped { display: none; }
+#xhair::after { content: ''; position: absolute; left: -9px; top: -9px; width: 18px; height: 18px; opacity: 0; background: linear-gradient(45deg, transparent 45%, #fff 45%, #fff 55%, transparent 55%), linear-gradient(-45deg, transparent 45%, #fff 45%, #fff 55%, transparent 55%); }
+#xhair.hit::after { opacity: 1; } #xhair.head::after { filter: drop-shadow(0 0 2px #ff3b3b); } #xhair.kill::after { background: linear-gradient(45deg, transparent 42%, #ff3b3b 42%, #ff3b3b 58%, transparent 58%), linear-gradient(-45deg, transparent 42%, #ff3b3b 42%, #ff3b3b 58%, transparent 58%); }
+#scope { position: absolute; inset: 0; pointer-events: none; background: radial-gradient(circle at center, transparent 0, transparent 33vh, #000 33.3vh); }
+#scope::before, #scope::after { content: ''; position: absolute; background: #000; }
+#scope::before { left: 0; right: 0; top: 50%; height: 1px; } #scope::after { top: 0; bottom: 0; left: 50%; width: 1px; }
+#flash { position: absolute; inset: 0; background: #fff; opacity: 0; pointer-events: none; }
+#vign { position: absolute; inset: 0; pointer-events: none; opacity: 0; background: radial-gradient(circle, transparent 50%, rgba(200,0,0,.6)); }
+#hurt { position: absolute; left: 50%; top: 50%; width: 260px; height: 260px; pointer-events: none; opacity: 0; transform: translate(-50%,-50%); }
+#hurt::before { content: ''; position: absolute; left: 50%; top: 0; transform: translateX(-50%); border: 18px solid transparent; border-bottom: 34px solid rgba(255,40,40,.85); }
+/* 겹치는 창 */
+.over { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(5,8,12,.55); backdrop-filter: blur(4px); z-index: 20; }
+.card { background: #121a24; border: 1px solid var(--line); border-radius: 18px; padding: 22px; max-width: min(1000px, 94vw); max-height: 90vh; overflow: auto; }
+.card label { display: flex; gap: 10px; align-items: center; margin: 10px 0; } .card label input[type=range] { flex: 1; } .card label b { min-width: 40px; }
+.card select { font: inherit; background: #1b2531; color: var(--txt); border: 1px solid var(--line); border-radius: 8px; padding: 6px; }
+#click { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.35); z-index: 15; cursor: pointer; font-size: 22px; font-weight: 800; }
+.shop-h { display: flex; gap: 14px; align-items: baseline; } .shop-h h2 { margin: 0; } .shop-h .cr { color: var(--acc); font-size: 24px; }
+.shop-grid { display: grid; grid-template-columns: repeat(5, minmax(150px, 1fr)); gap: 12px; margin-top: 12px; }
+.shop-grid h3 { font-size: 13px; color: var(--mut); margin: 6px 0; }
+.shop-grid button { display: block; width: 100%; text-align: left; margin-bottom: 8px; }
+.shop-grid button b { display: block; } .shop-grid button small { display: block; color: var(--mut); font-size: 11px; } .shop-grid button span { color: var(--acc); font-weight: 800; }
+.shop-grid button em { font-style: normal; color: var(--acc); font-size: 12px; }
+.shop-grid button.own { border-color: #5dffb0; background: rgba(93,255,176,.1); } .shop-grid button.poor { opacity: .45; }
+.tip { color: #ff9c9c; min-height: 18px; }
+table.sb { border-collapse: collapse; width: min(640px, 90vw); } table.sb td, table.sb th { padding: 7px 10px; text-align: left; border-bottom: 1px solid var(--line); }
+table.sb tr.me { background: rgba(255,210,58,.12); } table.sb tr.dead { opacity: .5; }
+#over h1 { font-size: 64px; margin: 0; } #over h1.win { color: #5dffb0; } #over h1.lose { color: #ff6b6b; }
+/* 터치 */
+#touch { position: absolute; inset: 0; pointer-events: none; z-index: 12; }
+#touch button { pointer-events: auto; position: absolute; border-radius: 50%; width: 62px; height: 62px; padding: 0; background: rgba(255,255,255,.12); border: 2px solid rgba(255,255,255,.3); font-size: 14px; font-weight: 800; }
+#touch button.on { background: rgba(255,210,58,.35); }
+#touch .stick { position: absolute; width: 120px; height: 120px; margin: -60px 0 0 -60px; border-radius: 50%; border: 2px solid rgba(255,255,255,.25); display: none; }
+#touch .stick.on { display: block; } #touch .knob { position: absolute; left: 35px; top: 35px; width: 50px; height: 50px; border-radius: 50%; background: rgba(255,255,255,.35); }
+body.touch #hp { bottom: 12px; } body.touch #abil { bottom: auto; top: 70px; } body.touch #ammo { bottom: auto; top: 230px; right: 14px; }
+body.touch #minimap { width: 150px; height: 150px; }
+@media (max-width: 760px) { .shop-grid { grid-template-columns: 1fr 1fr; } .teams { grid-template-columns: 1fr; } #top .sc { font-size: 24px; } i.ag { width: 20px; height: 20px; font-size: 10px; } }
+</style>
+</head>
+<body>
+<!-- 메인 메뉴 -->
+<div id="menu" class="screen">
+  <div>
+    <div class="title"><h1>CORE BREAKER</h1><p>코어 브레이커 · 5 대 5 전술 슈팅 · 한판 HANPAN</p></div>
+    <div class="mbox">
+      <label class="row"><span>닉네임</span><input id="nick" type="text" maxlength="12" style="flex:1"></label>
+      <div class="col">
+        <button id="m-solo" class="primary big">🎯 봇과 실전 연습</button>
+        <button id="m-make">🛰️ 방 만들기 (친구와 함께)</button>
+        <div class="row" style="margin:0"><input id="code" type="text" maxlength="12" placeholder="방 코드" style="flex:1"><button id="m-join">참가</button></div>
+        <p id="mp-note" class="muted"></p>
+        <div class="row"><button id="m-set">⚙️ 설정</button><button id="m-help">❓ 조작법 · 규칙</button></div>
+      </div>
+    </div>
+  </div>
+</div>
+<!-- 요원 선택 -->
+<div id="agents" class="screen hidden">
+  <h1>요원 선택</h1><p class="muted">요원마다 Q · E 기술이 달라요. 기술 횟수는 상점에서 더 살 수 있어요.</p>
+  <div id="ag-list" class="agents"></div>
+  <div id="ag-opts"></div>
+  <div class="row"><button id="ag-go" class="primary big">▶ 시작</button><button id="ag-back">뒤로</button></div>
+</div>
+<!-- 방 -->
+<div id="lobby" class="screen hidden"><div id="lobby-body"></div></div>
+<div id="setscr" class="screen hidden"></div>
+<!-- 도움말 -->
+<div id="help" class="screen hidden">
+  <h1>조작법 · 규칙</h1>
+  <div class="card">
+    <p><b>규칙</b> — 5대5, 먼저 7라운드 이기면 승리 (6라운드 뒤 공수 교대). 공격은 <b>코어</b>를 A나 B 사이트에 설치해서 40초 지키면 이기고, 수비는 막거나 해체(7초, 반쯤 하면 저장)하면 이겨요. 상대를 모두 쓰러뜨려도 이겨요.</p>
+    <p><b>경제</b> — 이기면 3000, 지면 1900(연패 때 더), 처치 200, 설치 300 크레딧. 구매 시간(20초)에 B로 상점을 열어요. 죽으면 주무기와 방어구를 잃어요.</p>
+    <p><b>키보드 · 마우스</b> — WASD 이동 · 마우스 조준 · 왼쪽 클릭 사격 · 오른쪽 클릭 조준(저격총은 확대) · R 장전 · Space 점프 · Ctrl/C 앉기 · Shift 걷기(발소리 없음) · 1/2 무기 · Q/E 기술 · F 길게 코어 설치/해체 · B 상점 · Tab 점수판 · Esc 멈춤</p>
+    <p><b>태블릿 · 휴대폰</b> — 왼쪽 화면 끌기 이동, 오른쪽 끌기 조준, 버튼으로 사격 · 점프 · 앉기 · 장전 · 기술 · 설치</p>
+    <p><b>팁</b> — 쏠 때 멈추면 정확해요. 연사는 짧게 끊어 쏘세요. 머리를 맞히면 피해가 몇 배예요. 뛰면 적에게 발소리가 들려요.</p>
+  </div>
+  <div class="row"><button id="help-back" class="primary">돌아가기</button></div>
+</div>
+<!-- 게임 -->
+<div id="play" class="screen hidden">
+  <div id="view"></div>
+  <div id="scope"></div>
+  <div id="vign"></div>
+  <canvas id="minimap" width="210" height="210"></canvas>
+  <div id="top" class="hud"></div>
+  <div id="feed" class="hud"></div>
+  <div id="msg" class="hud"></div>
+  <div id="hint" class="hud"></div>
+  <div id="prog" class="hud"></div>
+  <div id="xhair" class="hud"><i></i><i></i><i></i><i></i><i></i></div>
+  <div id="hurt"></div>
+  <div id="hp" class="hud"></div>
+  <div id="abil" class="hud"></div>
+  <div id="ammo" class="hud"></div>
+  <div id="flash"></div>
+  <div id="touch" class="hidden">
+    <div class="stick"><div class="knob"></div></div>
+    <button data-t="fire" style="right:30px;bottom:110px;width:84px;height:84px;background:rgba(255,80,60,.35)">🔫</button>
+    <button data-t="fire2" style="left:24px;bottom:200px;background:rgba(255,80,60,.25)">🔫</button>
+    <button data-t="aim" style="right:130px;bottom:150px">조준</button>
+    <button data-t="jump" style="right:30px;bottom:24px">점프</button>
+    <button data-t="crouch" style="right:104px;bottom:40px">앉기</button>
+    <button data-t="reload" style="right:180px;bottom:70px">장전</button>
+    <button data-t="q" style="right:210px;bottom:150px">Q</button>
+    <button data-t="e" style="right:150px;bottom:226px">E</button>
+    <button data-t="use" style="right:250px;bottom:20px">F</button>
+    <button data-t="swap" style="right:30px;bottom:210px">⇄</button>
+    <button data-t="buy" style="right:14px;top:14px;width:52px;height:52px">상점</button>
+    <button data-t="board" style="right:76px;top:14px;width:52px;height:52px">점수</button>
+    <button data-t="menu" style="right:138px;top:14px;width:52px;height:52px">⏸</button>
+  </div>
+  <div id="click" class="hidden">🖱️ 화면을 눌러 시작 (마우스로 조준)</div>
+  <div id="shop" class="over hidden"></div>
+  <div id="board" class="over hidden"></div>
+  <div id="pause" class="over hidden"></div>
+  <div id="over" class="over hidden"></div>
+</div>
+<script type="module" src="./js/main.js"></script>
+<a href="../index.html" id="hanpanHome" style="position:fixed;left:50%;bottom:6px;transform:translateX(-50%);z-index:9999;font:700 12px sans-serif;color:#fff;background:rgba(0,0,0,.45);padding:4px 10px;border-radius:99px;text-decoration:none;opacity:.7">← 한판 HANPAN</a>
+</body>
+</html>

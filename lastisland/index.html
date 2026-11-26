@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+<title>라스트 아일랜드 — 배틀로얄</title>
+<script type="importmap">{ "imports": { "three": "../vendor/three/three.module.js" } }</script>
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; height: 100%; overflow: hidden; background: #0d1b24; color: #fff; font-family: "Pretendard", "Noto Sans KR", system-ui, sans-serif; user-select: none; -webkit-user-select: none; touch-action: none; }
+button { font: inherit; color: #fff; background: rgba(255,255,255,.1); border: 2px solid rgba(255,255,255,.2); border-radius: 10px; padding: 10px 16px; cursor: pointer; font-weight: 700; }
+button.primary { background: linear-gradient(180deg, #ffb02e, #ff6a1a); border: 0; color: #2a1200; } button.sel { border-color: #ffb02e; } button.big { font-size: 20px; padding: 14px 28px; } button:disabled { opacity: .4; }
+input { font: inherit; background: rgba(255,255,255,.1); color: #fff; border: 2px solid rgba(255,255,255,.2); border-radius: 10px; padding: 10px; }
+.hidden { display: none !important; } .muted { opacity: .7; font-size: 13px; } .row { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; margin: 10px 0; }
+.screen { position: fixed; inset: 0; overflow: auto; }
+#menu { display: grid; place-items: center; background: radial-gradient(900px 500px at 50% 120%, #ff8a3a66, transparent), linear-gradient(180deg, #13334a, #0d1b24 70%); padding: 20px; }
+.logo { text-align: center; } .logo h1 { margin: 0; font-size: clamp(42px, 8vw, 88px); font-weight: 900; letter-spacing: -2px; background: linear-gradient(180deg, #fff, #ffb02e); -webkit-background-clip: text; background-clip: text; color: transparent; }
+.logo p { margin: 4px 0 18px; opacity: .85; }
+.card { background: rgba(16,30,40,.92); border: 1px solid rgba(255,255,255,.15); border-radius: 18px; padding: 20px; width: min(560px, 94vw); }
+#stats { color: #ffb02e; font-weight: 800; }
+.code { color: #ffb02e; font-family: ui-monospace, monospace; letter-spacing: 4px; font-size: 28px; }
+#lobby { display: grid; place-items: center; }
+#view { position: absolute; inset: 0; } #view canvas { display: block; }
+#top { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); display: flex; gap: 8px; pointer-events: none; flex-wrap: wrap; justify-content: center; }
+.pill { background: rgba(0,0,0,.55); border-radius: 999px; padding: 5px 12px; font-weight: 800; } .pill.warn { background: #6a3aff; }
+#bottom { position: absolute; bottom: 14px; left: 50%; transform: translateX(-50%); width: min(520px, 94vw); pointer-events: none; }
+.bars .hp { height: 18px; background: rgba(0,0,0,.55); border-radius: 6px; overflow: hidden; position: relative; } .bars .hp i { display: block; height: 100%; background: linear-gradient(90deg, #5dffa0, #c8ff5d); } .bars .hp b { position: absolute; left: 8px; top: 0; font-size: 13px; color: #000; }
+.bars .ar { height: 6px; background: rgba(0,0,0,.4); margin-top: 3px; border-radius: 3px; overflow: hidden; } .bars .ar i { display: block; height: 100%; background: #7ac6ff; }
+.guns { display: flex; gap: 6px; margin-top: 6px; } .gun { flex: 1; background: rgba(0,0,0,.55); border-radius: 10px; padding: 6px 10px; border: 2px solid transparent; border-left: 5px solid var(--c); } .gun.on { border-color: #fff; border-left-color: var(--c); }
+.gun small { opacity: .6; margin-right: 6px; } .gun span { float: right; font-weight: 800; }
+.heals { margin-top: 5px; font-size: 14px; text-shadow: 0 1px 3px #000; } .heals em { color: #ffb02e; font-style: normal; }
+#near { position: absolute; bottom: 150px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.55); padding: 6px 14px; border-radius: 10px; font-weight: 800; pointer-events: none; } #near:empty { display: none; }
+#feed { position: absolute; top: 50px; right: 12px; pointer-events: none; text-align: right; } #feed div { background: rgba(0,0,0,.5); border-radius: 6px; padding: 3px 9px; margin-bottom: 3px; font-size: 13px; } #feed div.me { background: rgba(255,176,46,.5); }
+#mini { position: absolute; top: 10px; left: 10px; width: 170px; height: 170px; border-radius: 50%; border: 3px solid rgba(255,255,255,.35); pointer-events: none; }
+#msg { position: absolute; top: 56px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,.55); padding: 8px 14px; border-radius: 10px; transition: opacity .5s; pointer-events: none; text-align: center; }
+#zone { position: absolute; inset: 0; box-shadow: inset 0 0 120px 40px rgba(106,58,255,.7); pointer-events: none; opacity: 0; transition: opacity .3s; }
+#bigmap { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.55); z-index: 10; } #bigcv { width: min(88vh, 92vw); height: min(88vh, 92vw); border-radius: 14px; border: 3px solid #fff; cursor: crosshair; }
+#bigmap p { position: absolute; bottom: 10px; left: 0; right: 0; text-align: center; }
+#end, #pause { position: absolute; inset: 0; display: grid; place-items: center; background: rgba(0,0,0,.55); z-index: 20; } #end h1 { font-size: 56px; margin: 0; } #end h1.win { color: #ffd23a; }
+#tpad { position: absolute; inset: 0; pointer-events: none; } .stk { position: absolute; width: 110px; height: 110px; margin: -55px 0 0 -55px; border-radius: 50%; border: 3px solid rgba(255,255,255,.3); display: none; } .stk.on { display: block; } .stk i { position: absolute; left: 30px; top: 30px; width: 44px; height: 44px; border-radius: 50%; background: rgba(255,255,255,.45); }
+#tpad button { pointer-events: auto; position: absolute; width: 58px; height: 58px; border-radius: 50%; padding: 0; font-size: 20px; }
+body.touch #bottom { bottom: 6px; width: min(420px, 60vw); } body.touch #mini { width: 120px; height: 120px; } body.touch #near { bottom: 130px; }
+</style>
+</head>
+<body>
+<div id="menu" class="screen"><div>
+  <div class="logo"><h1>LAST ISLAND</h1><p>라스트 아일랜드 · 20명 중 마지막 1명 · 한판 HANPAN</p></div>
+  <div class="card">
+    <div class="row"><span>닉네임</span><input id="nick" maxlength="10" style="flex:1"></div>
+    <div id="stats"></div>
+    <div class="row"><span>봇 실력</span><span id="diffs" class="row" style="margin:0"></span></div>
+    <div class="row"><button id="go" class="primary big">✈️ 출발 (봇 19명)</button></div>
+    <div class="row"><button id="mk">🛰️ 방 만들기</button><input id="code" placeholder="방 코드" maxlength="12" style="width:120px"><button id="jn">참가</button></div>
+    <p id="mpn" class="muted"></p>
+    <p class="muted">WASD 이동 · 마우스 조준 · 클릭 사격 (누르고 있으면 연사) · 우클릭 멀리 보기 · E 줍기 · R 장전 · Q 회복 · 1/2 무기 · M 지도 (눌러서 내릴 곳 표시) · Space 뛰어내리기</p>
+  </div>
+</div></div>
+<div id="lobby" class="screen hidden"></div>
+<div id="play" class="screen hidden">
+  <div id="view"></div><div id="zone"></div>
+  <canvas id="mini" width="170" height="170"></canvas>
+  <div id="top"></div><div id="feed"></div><div id="msg"></div><div id="near"></div><div id="bottom"></div>
+  <div id="tpad" class="hidden"><div id="tL" class="stk"><i></i></div><div id="tR" class="stk"><i></i></div>
+    <button id="tjump" style="right:20px;bottom:200px">⬇</button><button id="tpick" style="right:84px;bottom:240px">✋</button><button id="theal" style="right:20px;bottom:264px">💉</button><button id="trel" style="right:148px;bottom:220px">R</button><button id="tswap" style="right:84px;bottom:176px">⇄</button>
+    <button id="tmap" style="left:140px;top:14px;width:48px;height:48px">🗺</button><button id="tmenu" style="left:196px;top:14px;width:48px;height:48px">⏸</button></div>
+  <div id="bigmap" class="hidden"><canvas id="bigcv" width="900" height="900"></canvas><p>눌러서 내릴 곳 표시 · M 으로 닫기</p></div>
+  <div id="pause" class="hidden"></div>
+  <div id="end" class="hidden"></div>
+</div>
+<script type="module" src="./js/main.js"></script>
+<a href="../index.html" id="hanpanHome" style="position:fixed;left:50%;bottom:6px;transform:translateX(-50%);z-index:9999;font:700 12px sans-serif;color:#fff;background:rgba(0,0,0,.45);padding:4px 10px;border-radius:99px;text-decoration:none;opacity:.7">← 한판 HANPAN</a>
+</body>
+</html>
